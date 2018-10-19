@@ -218,15 +218,6 @@ public:
         value.res = resStr;
         return value;
     }
-
-    ExecutionResult &operator=(const ExecutionResult &other) {
-        if (&other == this) {
-            return *this;
-        }
-        type = other.type;
-        res = other.res;
-        return *this;
-    }
 };
 
 class Command{

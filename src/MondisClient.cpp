@@ -64,7 +64,7 @@ ExecutionResult MondisClient::commitTransaction(MondisServer *server) {
         LOGIC_ERROR_AND_RETURN
     }
     if (watchedKeysHasModified) {
-        res.res = "can not undoExecute the transaction,because the following keys has been modified.\n";
+        res.res = "can not execute the transaction,because the following keys has been modified.\n";
         for (auto &key:modifiedKeys) {
             res.res += key;
             res.res += " ";

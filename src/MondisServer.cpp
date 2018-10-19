@@ -319,8 +319,17 @@ ExecutionResult MondisServer::execute(Command *command, MondisClient *client) {
             }
             CHECK_PARAM_NUM(1)
             CHECK_PARAM_TYPE(0, PLAIN)
+            KEY(0)
+            if (client->keySpace->get(key) == nullptr) {
+                res.res = "the key ";
+                res.res += PARAM(0);
+                res.res += " does not exists";
+                LOGIC_ERROR_AND_RETURN
+            }
+            watchedKeyMtx.lock();
             keyToWatchedClients[TO_FULL_KEY_NAME(client->curDbIndex, PARAM(0))].insert(client);
-            client->watchedKeys.insert(PARAM(0));
+            client->watchedKeys.insert(TO_FULL_KEY_NAME(client->curDbIndex, PARAM(0)));
+            watchedKeyMtx.unlock();
             OK_AND_RETURN
         }
         case UNWATCH: {
@@ -330,12 +339,14 @@ ExecutionResult MondisServer::execute(Command *command, MondisClient *client) {
             }
             CHECK_PARAM_NUM(1)
             CHECK_PARAM_TYPE(0, PLAIN)
+            watchedKeyMtx.lock();
             keyToWatchedClients[TO_FULL_KEY_NAME(client->curDbIndex, PARAM(0))].erase(
                     keyToWatchedClients[PARAM(0)].find(client));
             if (keyToWatchedClients[TO_FULL_KEY_NAME(client->curDbIndex, PARAM(0))].size() == 0) {
                 keyToWatchedClients.erase(keyToWatchedClients.find(TO_FULL_KEY_NAME(client->curDbIndex, PARAM(0))));
             }
             client->watchedKeys.erase(client->watchedKeys.find(TO_FULL_KEY_NAME(client->curDbIndex, PARAM(0))));
+            watchedKeyMtx.unlock();
             OK_AND_RETURN
         }
         case GET_MASTER: {
@@ -1067,19 +1078,29 @@ void MondisServer::startEventLoop() {
 
 //client表示执行命令的客户端，如果为nullptr则为Mondisserver自身
 ExecutionResult MondisServer::execute(string &commandStr, MondisClient *client) {
+    Command *command = interpreter->getCommand(commandStr);
+    CommandStruct cstruct = getCommandStruct(command, client);
     ExecutionResult res;
+    if (cstruct.operation->type == PONG) {
+        res = execute(cstruct.operation, client);
+        Command::destroyCommand(cstruct.locate);
+        Command::destroyCommand(cstruct.operation);
+        return res;
+    }
     if (isPropagating) {
+        Command::destroyCommand(cstruct.locate);
+        Command::destroyCommand(cstruct.operation);
         res.res = "is propagating command to a slave,please try later on";
         res.type = INTERNAL_ERROR;
         return res;
     }
     if (isVoting && client->type == CLIENT) {
+        Command::destroyCommand(cstruct.locate);
+        Command::destroyCommand(cstruct.operation);
         res.res = "master is dead,the cluster is voting for new master";
         res.type = INTERNAL_ERROR;
         return res;
     }
-    Command *command = interpreter->getCommand(commandStr);
-    CommandStruct cstruct = getCommandStruct(command, client);
     if ((!client->hasAuthenticate) && (cstruct.operation->type != LOGIN)) {
         Command::destroyCommand(cstruct.locate);
         Command::destroyCommand(cstruct.operation);
@@ -1681,6 +1702,11 @@ void MondisServer::closeClient(MondisClient *client) {
 #ifdef WIN32
     if (client->type == CLIENT) {
         FD_CLR(client->sock, &clientFds);
+        watchedKeyMtx.lock();
+        for (auto &key:client->watchedKeys) {
+            keyToWatchedClients[key].erase(keyToWatchedClients[key].find(client));
+        }
+        watchedKeyMtx.unlock();
         clientModifyMtx.lock();
         nameToClients.erase(nameToClients.find(client->name));
         clientModifyMtx.unlock();
@@ -1774,13 +1800,18 @@ void MondisServer::saveAll(const string &jsonFile) {
 }
 
 bool MondisServer::handleWatchedKey(const string &key) {
+    watchedKeyMtx.lock_shared();
     if (keyToWatchedClients.find(key) == keyToWatchedClients.end()) {
+        watchedKeyMtx.unlock_shared();
         return true;
     }
+    watchedKeyMtx.unlock_shared();
     if (forbidOtherModifyInTransaction) {
         return false;
     }
+    watchedKeyMtx.lock_shared();
     unordered_set<MondisClient *> &vc = keyToWatchedClients[key];
+    watchedKeyMtx.unlock_shared();
     for (MondisClient *client:vc) {
         client->watchedKeysHasModified = true;
         client->modifiedKeys.insert(key);

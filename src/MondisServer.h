@@ -211,6 +211,7 @@ private:
     shared_mutex allModifyMtx;
     shared_mutex clientModifyMtx;
     shared_mutex peersModifyMtx;
+    shared_mutex watchedKeyMtx;
 
     bool isRedirecting = false;
 
