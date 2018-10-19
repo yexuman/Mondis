@@ -5,7 +5,10 @@
 #include <ctime>
 #include "MondisServer.h"
 #include <unistd.h>
+
+#ifdef linux
 #include <netinet/in.h>
+#endif
 
 void MondisClient::send(const string &res) {
     char buffer[4096];
@@ -99,6 +102,7 @@ ExecutionResult MondisClient::commitTransaction(MondisServer *server) {
         server->appendAof(c);
     }
     closeTransaction();
+    OK_AND_RETURN
 }
 
 string MondisClient::read() {

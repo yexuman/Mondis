@@ -186,7 +186,7 @@ class ExecutionResult {
 public:
     static std::string typeToStr[];
     static std::unordered_map<std::string, ExecutionResultType> strToType;
-    ExecutionResultType type;
+    ExecutionResultType type = OK;
     std::string res;
     bool needSend = true;
     ExecutionResult():type(LOGIC_ERROR){};
@@ -217,6 +217,15 @@ public:
         value.type = strToType[typeStr];
         value.res = resStr;
         return value;
+    }
+
+    ExecutionResult &operator=(const ExecutionResult &other) {
+        if (&other == this) {
+            return *this;
+        }
+        type = other.type;
+        res = other.res;
+        return *this;
     }
 };
 

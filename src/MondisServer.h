@@ -16,6 +16,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <shared_mutex>
 
 #ifdef WIN32
 
@@ -84,17 +85,12 @@ public:
 #endif
     ClientType type = CLIENT;
     int curDbIndex = 0;
-    HashMap *keySpace = nullptr;            /* Pointer to currently SELECTed DB. */
-    string name;             /* As set by CLIENT SETNAME. */
-    vector<string> commandBuffer;         /* Buffer we use to accumulate client queries. */
-    int curCommandIndex = 0;
-    vector<ExecutionResult> *reply;            /* List of reply objects to sendToMaster to the client. */
+    HashMap *keySpace = nullptr;
+    string name;
     string ip;
     int port;
-
     long long preInteraction = chrono::duration_cast<chrono::milliseconds>(
             chrono::system_clock::now().time_since_epoch()).count();
-
     unordered_set<string> watchedKeys;
     unordered_set<string> modifiedKeys;
 
@@ -106,11 +102,7 @@ public:
     bool watchedKeysHasModified = false;
 
     int hasExecutedCommandNumInTransaction = 0;
-public:
-    bool hasAuthenticate = false;
-private:
-    static int nextId;
-public:
+    bool hasAuthenticate = true;
 #ifdef WIN32
 
     MondisClient(MondisServer *server, SOCKET sock);
@@ -215,6 +207,10 @@ private:
     bool isPropagating = false;
     condition_variable redirectCV;
     mutex redirectMtx;
+
+    shared_mutex allModifyMtx;
+    shared_mutex clientModifyMtx;
+    shared_mutex peersModifyMtx;
 
     bool isRedirecting = false;
 
