@@ -49,9 +49,11 @@ mondis slave节点可以自动将收到的写命令转发到master节点执行�
 并返回一个错误。
 ## mondis底层实现相对于redis的改进
 ### list
-在mondis里面，list还是用链表实现。不同的是mondis保存了对象指针与索引的双向映射，这样虽然多占用了一些空间，不过可以方便的定位到所需元素。
+在mondis里面，list还是用链表实现。不同的是mondis保存了对象指针与索引的双向映射，这样虽然多占用了一些空间，
+不过支持元素的随机访问。list同时支持redis里面的list所有操作。这些操作的均摊时间复杂度均为常数。
 ### set
-mondis的set采用的是value为空的hash表进行实现，听起来似乎与redis没什么不同，但是mondis的hashmap采用avl树解决哈希冲突，减小了哈希表操作的常数因子。
+mondis的set采用的是value为空的hash表进行实现，听起来似乎与redis没什么不同，但是mondis的hashmap采用avl树解决哈希冲突，
+减小了哈希表操作的常数因子。
 ### zset
 redis的zset采用跳表+哈希表实现，编码异常复杂，空间占用也没很大优势。
 mondis的zset采用伸展树实现，在时间与空间复杂度上进行了很好的权衡，而且伸展树方便的支持区间操作。
