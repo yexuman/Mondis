@@ -66,7 +66,6 @@ public:
     unsigned size();
     void toJson();
 
-    string toJsonWithScore();
     SplayIterator iterator();
 
     ExecutionResult execute(Command *command);

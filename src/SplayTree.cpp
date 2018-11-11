@@ -8,15 +8,19 @@
 
 
 void SplayTree::toJson() {
-    json = "";
+    string res;
     SplayIterator iterator = this->iterator();
-    json += "[";
-    json += "\n";
+    res += "{";
+    res += "\n";
     while (iterator.next()) {
-        json += iterator->data->getJson();
-        json += ",\n";
+        string score = "\"" + to_string(iterator->score) + "\"";
+        res += score;
+        res += ",\n";
+        res += iterator->data->getJson();
+        res += ",\n";
     }
-    json += "]\n";
+    res += "}\n";
+    return res;
 }
 
 
@@ -810,22 +814,6 @@ MondisObject *SplayTree::locate(Command *command) {
     }
 
     return nullptr;
-}
-
-string SplayTree::toJsonWithScore() {
-    string res;
-    SplayIterator iterator = this->iterator();
-    res += "{";
-    res += "\n";
-    while (iterator.next()) {
-        string score = "\"" + to_string(iterator->score) + "\"";
-        res += score;
-        res += ",\n";
-        res += iterator->data->getJson();
-        res += ",\n";
-    }
-    res += "}\n";
-    return res;
 }
 
 SplayTreeNode *SplayTree::getNodeByRank(int rank) {
